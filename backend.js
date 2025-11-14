@@ -1,0 +1,103 @@
+
+
+// Import required modules
+const express = require("express");
+const mysql = require("mysql2");
+const cors = require("cors");
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+// DATABASE CONNECTION 
+const db = mysql.createConnection({
+  host: "localhost",
+  user: "root",
+  password: "",       // your MySQL password if any
+  database: "leaderboard"
+});
+
+// Connect to MySQL
+db.connect((err) => {
+  if (err) throw err;
+  console.log("MySQL Connected");
+});
+
+// CRUD API ROUTES
+
+// GET all players sorted by score DESC
+app.get("/players", (req, res) => {
+  db.query("SELECT * FROM players ORDER BY score DESC", (err, result) => {
+    if (err) throw err;
+    res.json(result);
+  });
+});
+
+// POST - Add or Update player
+app.post("/players", (req, res) => {
+  const { name, score } = req.body;
+
+  // Check if player exists
+  db.query(
+    "SELECT * FROM players WHERE player_name = ?",
+    [name],
+    (err, result) => {
+      if (err) throw err;
+
+      // If player exists → UPDATE
+      if (result.length > 0) {
+        db.query(
+          "UPDATE players SET score = ? WHERE id = ?",
+          [score, result[0].id],
+          (err) => {
+            if (err) throw err;
+            res.json({ message: "Player updated" });
+          }
+        );
+      } 
+      // Else → INSERT
+      else {
+        db.query(
+          "INSERT INTO players (player_name, score) VALUES (?, ?)",
+          [name, score],
+          (err) => {
+            if (err) throw err;
+            res.json({ message: "Player added" });
+          }
+        );
+      }
+    }
+  );
+});
+
+// PUT - Update specific player score
+app.put("/players/:id", (req, res) => {
+  const { score } = req.body;
+
+  db.query(
+    "UPDATE players SET score = ? WHERE id = ?",
+    [score, req.params.id],
+    (err) => {
+      if (err) throw err;
+      res.json({ message: "Score updated" });
+    }
+  );
+});
+
+// DELETE - Remove player
+app.delete("/players/:id", (req, res) => {
+  db.query(
+    "DELETE FROM players WHERE id = ?",
+    [req.params.id],
+    (err) => {
+      if (err) throw err;
+      res.json({ message: "Player deleted" });
+    }
+  );
+});
+
+// ---------- START SERVER ----------
+app.listen(3000, () => {
+  console.log("Server running at http://localhost:3000");
+});
+
