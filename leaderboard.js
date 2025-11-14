@@ -1,67 +1,77 @@
-const form = document.getElementById('playerForm');
-const nameInput = document.getElementById('name');
-const scoreInput = document.getElementById('score');
-const tableBody = document.querySelector('#leaderboard tbody');
+const form = document.getElementById("playerForm");
+const nameInput = document.getElementById("name");
+const scoreInput = document.getElementById("score");
+const tableBody = document.querySelector("#leaderboard tbody");
 
+const API_URL = "http://localhost:3000/players";
 
-let players = JSON.parse(localStorage.getItem('players')) || [];
+// Load players from backend
+async function loadPlayers() {
+  const res = await fetch(API_URL);
+  const players = await res.json();
+  displayPlayers(players);
+}
 
 // Display players in table
-function displayPlayers() {
-  
-  players.sort((a, b) => b.score - a.score);
-
-  tableBody.innerHTML = players.map((player, index) => `
+function displayPlayers(players) {
+  tableBody.innerHTML = players
+    .map(
+      (player, index) => `
     <tr>
       <td>${index + 1}</td>
-      <td>${player.name}</td>
-      <td><input type="number" id="score-${index}" value="${player.score}" /></td>
+      <td>${player.player_name}</td>
+      <td><input type="number" id="score-${player.id}" value="${player.score}"/></td>
       <td>
-        <button onclick="updatePlayer(${index})">Update</button>
-        <button onclick="deletePlayer(${index})" style="background-color:red;">Delete</button>
+        <button onclick="updatePlayer(${player.id})">Update</button>
+        <button onclick="deletePlayer(${player.id})" style="background-color:red;">Delete</button>
       </td>
     </tr>
-  `).join('');
-
-  
-  localStorage.setItem('players', JSON.stringify(players));
+  `
+    )
+    .join("");
 }
 
 // Add or update a player
-form.addEventListener('submit', (e) => {
+form.addEventListener("submit", async (e) => {
   e.preventDefault();
 
   const name = nameInput.value.trim();
   const score = parseInt(scoreInput.value);
 
-  if (!name || isNaN(score)) return alert('Please enter valid name and score.');
-
-  // Check if player already exists
-  const existing = players.find(p => p.name.toLowerCase() === name.toLowerCase());
-  if (existing) {
-    existing.score = score; // update score
-  } else {
-    players.push({ name, score });
+  if (!name || isNaN(score)) {
+    alert("Enter valid name and score");
+    return;
   }
 
-  nameInput.value = '';
-  scoreInput.value = '';
-  displayPlayers();
+  await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, score }),
+  });
+
+  nameInput.value = "";
+  scoreInput.value = "";
+  loadPlayers();
 });
 
-// Update score directly in table
-function updatePlayer(index) {
-  const newScore = parseInt(document.getElementById(`score-${index}`).value);
-  if (isNaN(newScore)) return alert('Invalid score');
-  players[index].score = newScore;
-  displayPlayers();
+// Update score
+async function updatePlayer(id) {
+  const newScore = document.getElementById(`score-${id}`).value;
+
+  await fetch(`${API_URL}/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ score: parseInt(newScore) }),
+  });
+
+  loadPlayers();
 }
 
 // Delete player
-function deletePlayer(index) {
-  players.splice(index, 1);
-  displayPlayers();
+async function deletePlayer(id) {
+  await fetch(`${API_URL}/${id}`, { method: "DELETE" });
+  loadPlayers();
 }
 
-// Load leaderboard on page start
-displayPlayers();
+loadPlayers();
+
